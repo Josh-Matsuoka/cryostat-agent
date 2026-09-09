@@ -142,23 +142,33 @@ class TriggerParserTest {
     @Test
     void testTriggerWithOptionalFields() {
         Mockito.when(helper.isValidTemplate(Mockito.anyString())).thenReturn(true);
-        String in = "[{ \"condition\": \"ProcessCpuLoad>0.2\"," + //
-                                "  \"duration\": \"30000\"," + //
-                                "  \"stopCondition\": \"ProcessCpuLoad<0.1&&timeLastActivated>30000\"," + //
-                                "  \"stopDuration\": \"10000\" ,\n" + //
-                                "  \"recordingTemplate\": \"someTemplate\"," + //
-                                "  \"executionTarget\": \"10\"" + //
-                                "}]";
+        String in =
+                "[{ \"condition\": \"ProcessCpuLoad>0.2\","
+                        + //
+                        "  \"duration\": \"30000\","
+                        + //
+                        "  \"stopCondition\": \"ProcessCpuLoad<0.1&&timeLastActivated>30000\","
+                        + //
+                        "  \"stopDuration\": \"10000\" ,\n"
+                        + //
+                        "  \"recordingTemplate\": \"someTemplate\","
+                        + //
+                        "  \"executionTarget\": \"10\""
+                        + //
+                        "}]";
         List<SmartTrigger> out = parser.parseFromJson(in);
 
         MatcherAssert.assertThat(out, Matchers.hasSize(1));
         SmartTrigger trigger = out.get(0);
 
-        MatcherAssert.assertThat(trigger.getRecordingTemplateName(), Matchers.equalTo("someTemplate"));
+        MatcherAssert.assertThat(
+                trigger.getRecordingTemplateName(), Matchers.equalTo("someTemplate"));
         MatcherAssert.assertThat(trigger.getTargetDuration().toMillis(), Matchers.equalTo(30000L));
         MatcherAssert.assertThat(
                 trigger.getTriggerCondition(), Matchers.equalTo("ProcessCpuLoad>0.2"));
-        MatcherAssert.assertThat(trigger.getStopCondition(), Matchers.equalTo("ProcessCpuLoad<0.1&&timeLastActivated>30000"));
+        MatcherAssert.assertThat(
+                trigger.getStopCondition(),
+                Matchers.equalTo("ProcessCpuLoad<0.1&&timeLastActivated>30000"));
         MatcherAssert.assertThat(trigger.getStopDuration(), Matchers.equalTo(10000L));
         MatcherAssert.assertThat(trigger.getExecutionTarget(), Matchers.equalTo(10L));
         MatcherAssert.assertThat(trigger.getState(), Matchers.equalTo(TriggerState.NEW));

@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -185,7 +186,7 @@ public class TriggerEvaluator {
                         // met once
                         if (t.isSimple() && evaluateTriggerConstraint(t, t.getTargetDuration())) {
                             log.trace("Trigger {} satisfied, starting recording...", t);
-                            recordings.put(t.getID(), startRecording(t));
+                            startRecording(t);
                             client.syncSmartTrigger(
                                     new SmartTriggerUpdate(
                                             Collections.emptyList(),
@@ -248,7 +249,9 @@ public class TriggerEvaluator {
                     case RECORDING_STOPPING:
                         log.trace("Trigger {} in RECORDING_STOPPING, checking...", t);
                         // Condition was met at last check but duration hasn't passed
-                        if (evaluateTriggerStopConstraint(t, Duration.ofMillis(difference))) {
+                        long stopDifference =
+                                currentTime.getTime() - t.getTimeStopConditionFirstMet().getTime();
+                        if (evaluateTriggerStopConstraint(t, Duration.ofMillis(stopDifference))) {
                             log.trace("Trigger {} satisfied, completing...", t);
                             stopRecording(t);
                             client.syncSmartTrigger(
@@ -281,7 +284,7 @@ public class TriggerEvaluator {
                 "Recording {} stopped, delegating to harvester",
                 recording.getRecording().getName());
         harvester.recordingStateChanged(recording.getRecording());
-        if (activationCounts.get(t) <= t.getExecutionTarget()) {
+        if (activationCounts.getOrDefault(t, 0L) >= t.getExecutionTarget()) {
             t.setState(TriggerState.COMPLETE);
         } else {
             // Trigger can keep firing, reset the state
@@ -289,16 +292,21 @@ public class TriggerEvaluator {
         }
     }
 
-    private TemplatedRecording startRecording(SmartTrigger t) {
-        TemplatedRecording tr =
-                flightRecorderHelper
-                        .createRecordingWithPredefinedTemplate(t.getRecordingTemplateName())
-                        .get();
+    private void startRecording(SmartTrigger t) {
+        Optional<TemplatedRecording> rec =
+                flightRecorderHelper.createRecordingWithPredefinedTemplate(
+                        t.getRecordingTemplateName());
+        if (rec.isEmpty()) {
+            log.warn("Failed to create recording, leaving trigger state unchanged");
+            return;
+        }
+        TemplatedRecording tr = rec.get();
         String recordingName =
                 String.format("cryostat-smart-trigger-%d", tr.getRecording().getId());
         tr.getRecording().setName(recordingName);
         harvester.handleNewNamedRecording(tr, recordingName);
         tr.getRecording().start();
+        recordings.put(t.getID(), tr);
         t.setState(TriggerState.RECORDING_ACTIVE);
         activationCounts.merge(t, 1l, Long::sum);
         log.debug(
@@ -306,7 +314,6 @@ public class TriggerEvaluator {
                 recordingName,
                 t.getRecordingTemplateName(),
                 t.getTriggerCondition());
-        return tr;
     }
 
     private boolean evaluateTriggerConstraint(SmartTrigger trigger, Duration targetDuration) {

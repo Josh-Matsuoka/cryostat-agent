@@ -89,7 +89,6 @@ shutdown so that the cause of an unexpected JVM shutdown might be captured for l
 on a set of constraints specified by the user.
 
 The general form of a Smart Trigger expression is as follows:
-"
 ```
 { "condition": "constraint1(&&/||)constraint2...constraintN" ,
   "duration": "number of milliseconds" ,
