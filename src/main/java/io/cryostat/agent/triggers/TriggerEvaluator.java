@@ -284,7 +284,7 @@ public class TriggerEvaluator {
                 "Recording {} stopped, delegating to harvester",
                 recording.getRecording().getName());
         harvester.recordingStateChanged(recording.getRecording());
-        if (activationCounts.getOrDefault(t, 0L) >= t.getExecutionTarget()) {
+        if (activationCounts.getOrDefault(t, 0L) >= t.getInvocationCountTarget()) {
             t.setState(TriggerState.COMPLETE);
         } else {
             // Trigger can keep firing, reset the state
